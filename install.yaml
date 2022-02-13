@@ -1,0 +1,124 @@
+---
+- name:
+  hosts: localhost
+  environment:
+  vars:
+    deployment_name: ingress-nginx-keepalive-test
+    secret_key: "1234567890123456"
+
+
+  tasks:
+    - name: clone system under test
+      ansible.builtin.git:
+        repo: git@github.com:leki75/ingress-nginx.git
+        dest: system_under_test/ingress-nginx/
+        version: external-auth-keepalive
+      tags: build
+
+    - name: build ingress controller
+      command: 
+        chdir: system_under_test/ingress-nginx/
+        cmd: make build image
+      environment:
+        REGISTRY: docker.io/library
+        TAG: v1.1.1-alpha-lua-keepalive
+      tags: build
+
+    - name: build images
+      command: |
+        docker build -t {{ item.name }}:{{ item.tag }} {{ item.name }}/docker
+      loop:
+        - { name: auth, tag: "v1.0.0"}
+        - { name: app, tag: "v1.0.0" }
+      tags: build
+
+    
+    - name: check if kind cluster is available
+      command: |
+        kind get clusters
+      register: kind_present
+      tags: bootstrap
+
+    - name: create kind cluster if needed
+      command: |
+        kind create cluster --config=kind/cluster.conf
+      when: kind_present.stdout != "kind"
+      tags: bootstrap
+
+    - name: retag images
+      command: |
+        docker tag docker.io/library/{{ item.image }}:{{item.tag}} {{ item.image }}:{{item.tag}}
+      loop:
+        - { image: app, tag: "v1.0.0" }
+        - { image: auth, tag: "v1.0.0" }
+        - { image: controller, tag: v1.1.1-alpha-lua-keepalive }
+      tags: build
+
+    - name: load images into kind
+      command: |
+        kind load docker-image {{ item.image }}:{{item.tag}}
+      loop:
+        - { image: app, tag: "v1.0.0" }
+        - { image: auth, tag: "v1.0.0" }
+        - { image: controller, tag: "v1.1.1-alpha-lua-keepalive" }
+      tags: bootstrap
+
+    - name: deploy ingress controller
+      command: |
+        helm upgrade --install {{ deployment_name }} ingress-nginx  \
+                     --create-namespace \
+                     --namespace {{ deployment_name }}  \
+                     --repo https://kubernetes.github.io/ingress-nginx \
+                     -f values/ingress-nginx.yaml
+      when: kind_present.stdout.find("No kind clusters found.") == -1
+      tags: bootstrap
+
+    - name: wait for ingress to be ready
+      command: |
+        kubectl wait --namespace {{ deployment_name }}  \
+                     --for=condition=ready pod \
+                     --selector=app.kubernetes.io/component=controller \
+                     --timeout=300s
+      when: kind_present.stdout.find("No kind clusters found.") == -1
+      tags: bootstrap
+
+    - name: k8s create
+      command: |
+        kubectl create deployment {{ item.name }} --image={{ item.name }}:{{ item.tag }}
+      loop:
+        - { name: app, tag: "v1.0.0" }
+        - { name: auth, tag: "v1.0.0" }
+      register: create
+      failed_when:
+        - create.rc != 0
+        - '"already exists" not in create.stderr'
+      tags: 
+        - deploy
+
+    - name: set environment
+      command: |
+        kubectl set env deployment/{{ item }} SECRET_KEY={{ secret_key }}
+      loop:
+        - app 
+        - auth
+      tags: deploy
+
+    - name: k8s expose
+      command: |
+        kubectl expose deployment {{ item }} --port 80 --target-port=8080
+      loop:
+        - app
+        - auth
+      register: expose
+      failed_when:
+        - expose.rc != 0
+        - '"AlreadyExists" not in expose.stderr'
+      tags: deploy
+
+    - name: k8s create ingress
+      command: |
+        kubectl apply -f {{ item }}/ingress.yaml
+      loop:
+        - app
+        - auth
+      tags: deploy
