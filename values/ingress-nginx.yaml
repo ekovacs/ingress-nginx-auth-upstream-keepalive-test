@@ -1,11 +1,14 @@
 controller:
+  hostPort:
+    enabled: true
   image:
     repository: controller
     tag: v1.1.1-alpha-lua-keepalive
-    # pullPolicy: Always
     digest: ""
   ingressClassResource:
     name: nginx
     controllerValue: k8s.io/ingress-nginx
     enabled: true
     default: true
+  config:
+    use-http2: false
