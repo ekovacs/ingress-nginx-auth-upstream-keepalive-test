@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app
+  namespace: default
+  annotations:
+    nginx.ingress.kubernetes.io/auth-keepalive: "20"
+    nginx.ingress.kubernetes.io/auth-response-headers: Authorization
+    nginx.ingress.kubernetes.io/auth-url: http://auth.default.svc.cluster.local/auth
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: localhost
+      http:
+          paths: 
+            - path: /hello
+              pathType: Exact
+              backend:
+                service:
+                  name: app
+                  port:
+                    number: 8080
