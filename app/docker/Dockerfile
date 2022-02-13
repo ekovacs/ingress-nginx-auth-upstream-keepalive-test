@@ -4,4 +4,4 @@ FROM openresty/openresty:1.19.9.1-5-alpine-fat
 RUN echo ""                >> /usr/local/openresty/nginx/conf/nginx.conf && \
     echo "env SECRET_KEY;" >> /usr/local/openresty/nginx/conf/nginx.conf
 
-COPY app.conf /etc/nginx/conf.d/auth.conf
+COPY app.conf /etc/nginx/conf.d/app.conf
