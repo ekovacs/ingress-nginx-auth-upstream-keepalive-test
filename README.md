@@ -30,3 +30,19 @@ docker run --rm -it --network host  client bash
 ```
 A load-tester util [hey](https://github.com/rakyll/hey) is installed in the client image. 
 The shell history contains a single item which will give the system a nice load.
+
+While the loadtester runs, one can check the number of `ESTABLISHED` connections on each side of the line:
+ingress-controller side:
+```
+export ingress_namespace=ingress-nginx-keepalive-test; for pod in $(k get pod -n $ingress_namespace -l app.kubernetes.io/component=controller,app.kubernetes.io/instance=$ingress_namespace -o name ); do
+      echo "$pod:"; k exec -n $ingress_namespace $pod -- netstat -nat | awk '{tw[$5" "$6]++}END{for(dst in tw){ if(tw[dst]>1) print tw[dst]" "dst}}' | sort -n; echo "\n"
+done
+```
+
+auth app side:
+```
+export namespace=default; export authApp=auth; export authPort=8080; for pod in $(k get pod -n $namespace -l app=$authApp -o name ); do
+      echo "$pod:"; k exec -n $namespace $pod -- netstat -natl | awk '$4 ~ /[0-9]+:8080/{split($5, foreign, ":");tw[foreign[1]" "$6]++}END{for(dst in tw){ print tw[dst]" "dst}}' | sort -n; echo "\n"
+done
+```
+Note: when the traffic is higher than the number of keepalive connections, then nginx will still build up an ephemeral TCP connection to the destination [as per nginx documentation](http://nginx.org/en/docs/http/ngx_http_upstream_module.html#keepalive). You can play around with this by changing the number of concurrency in the `hey` command, eg.: `-c 5` or `-c 100`.
