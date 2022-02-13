@@ -1,5 +1,14 @@
 # ingress-nginx-auth-upstream-keepalive-test
-Verification sample for testing if ingress-nginx's external auth's upstream keepalive block works or not
+Under heavy load, nginx subrequests may create too many lingering client sockets, which can cause the subrequest to fail with 500
+```
+[crit] 51#51: *2067723 connect() to <auth-service-ip>:<port> failed (99: Address not available) while connecting to upstream, client: <client-ip>, server: <your-server>, request: "GET /v2/clock HTTP/2.0", subrequest: "/_external-auth-Lw-Prefix", upstream: "http://<auth-service-ip>:<port>/auth", host: "<host>"
+```
+To prevent that, auth subrequests should use keepalive connections.
+[Leki75](https://github.com/leki75) provided just that in [PR](https://github.com/kubernetes/ingress-nginx/pull/8219)
+
+This verification sample is for testing how ingress-nginx's external auth's upstream keepalive block works, to check how connections behave when connection this feature is `on` or `off`.
+
+
 
 This verification suite has a:
 - dummy auth app
