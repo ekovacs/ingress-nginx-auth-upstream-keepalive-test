@@ -5,7 +5,7 @@ metadata:
   namespace: default
   annotations:
     nginx.ingress.kubernetes.io/auth-keepalive: "20"
-    nginx.ingress.kubernetes.io/auth-response-headers: Authorization
+    nginx.ingress.kubernetes.io/auth-response-headers: authorization
     nginx.ingress.kubernetes.io/auth-url: http://auth.default.svc.cluster.local/auth
 spec:
   ingressClassName: nginx
