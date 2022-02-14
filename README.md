@@ -1,12 +1,12 @@
 # ingress-nginx-auth-upstream-keepalive-test
 Under heavy load, nginx subrequests may create too many lingering client sockets, which can cause the subrequest to fail with 500
 ```
-[crit] 51#51: *2067723 connect() to <auth-service-ip>:<port> failed (99: Address not available) while connecting to upstream, client: <client-ip>, server: <your-server>, request: "GET /v2/clock HTTP/2.0", subrequest: "/_external-auth-Lw-Prefix", upstream: "http://<auth-service-ip>:<port>/auth", host: "<host>"
+[crit] 51#51: *2067723 connect() to <auth-service-ip>:<port> failed (99: Address not available) while connecting to upstream, client: <client-ip>, server: <your-server>, request: "GET /path HTTP/2.0", subrequest: "/_external-auth-Lw-Prefix", upstream: "http://<auth-service-ip>:<port>/auth", host: "<host>"
 ```
 To prevent that, auth subrequests should use keepalive connections.
 [Leki75](https://github.com/leki75) provided just that in [PR](https://github.com/kubernetes/ingress-nginx/pull/8219)
 
-This verification sample is for testing how ingress-nginx's external auth's upstream keepalive block works, to check how connections behave when connection this feature is `on` or `off`.
+This verification sample is for testing how ingress-nginx's external auth's upstream keepalive block works, to check how connections behave when this feature is `on` or `off`.
 
 
 
@@ -16,7 +16,7 @@ This verification suite has a:
 - ansible-playbook
 
 The `dummy auth` app gives back HTTP 200 only if called with the appropriate api key and api secret key.
-The `dummy app` dummy verifies it: the authorization header must be able to be decriptable with the provided symmetric key `SECRET_KEY` residing as an environment variable.
+The `dummy app` dummy verifies it: the authorization header must be able to be decryptable with the provided symmetric key `SECRET_KEY` residing as an environment variable.
 The `ansible-playbook` makes it easy to get a testing environment up and running, it:
 - clones and builds the PR for the [auth-keepalive-upstream PR](https://github.com/kubernetes/ingress-nginx/pull/8219) by [Leki75](http://github.com/leki75/)
 - builds the two dummy images
@@ -25,7 +25,7 @@ The `ansible-playbook` makes it easy to get a testing environment up and running
 
 
 # Run
-You need to have `ansible` and `helm` installed.
+You need to have `make`, `ansible` and `helm` installed.
 To give it a run, 
 
 ```
@@ -35,7 +35,7 @@ ansible-playbook install.yaml
 To start up a client to test keepalive under load:
 
 ```
-docker run --rm -it --network host  client bash
+docker run --rm -it --network host client bash
 ```
 A load-tester util [hey](https://github.com/rakyll/hey) is installed in the client image. 
 The shell history contains a single item which will give the system a nice load.
